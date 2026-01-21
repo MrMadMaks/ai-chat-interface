@@ -24,6 +24,7 @@ declare module 'react-window' {
   
     export interface VariableSizeList extends Component<VariableSizeListProps> {
       scrollToItem(index: number, align?: 'auto' | 'smart' | 'center' | 'end' | 'start'): void;
+      resetAfterIndex(index: number, shouldForceUpdate?: boolean): void;
     }
   
     export const VariableSizeList: React.ComponentType<VariableSizeListProps & { ref?: Ref<VariableSizeList> }>;

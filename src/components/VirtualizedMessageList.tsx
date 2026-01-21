@@ -4,7 +4,6 @@ import type { ListOnScrollProps } from 'react-window';
 import { useChatStore } from '../store/chatStore';
 import { MessageItem } from './MessageItem';
 
-
 export const VirtualizedMessageList: React.FC = () => {
   const messages = useChatStore((state) => state.messages);
   const isGenerating = useChatStore((state) => state.isGenerating);
@@ -13,6 +12,7 @@ export const VirtualizedMessageList: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [listHeight, setListHeight] = useState(600);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const itemHeightsRef = useRef<Map<number, number>>(new Map());
 
   // Динамический размер контейнера
   useEffect(() => {
@@ -34,9 +34,15 @@ export const VirtualizedMessageList: React.FC = () => {
     }
   }, [messages, shouldAutoScroll, isGenerating]);
 
+  // Пересчитываем размеры при изменении сообщений
+  useEffect(() => {
+    if (listRef.current) {
+      listRef.current.resetAfterIndex(0);
+    }
+  }, [messages]);
+
   // Отслеживание скролла пользователя
   const handleScroll = useCallback(({ scrollOffset, scrollUpdateWasRequested }: ListOnScrollProps) => {
-    // Если пользователь скроллит вручную - отключаем автоскролл
     if (!scrollUpdateWasRequested) {
       const container = containerRef.current;
       if (container) {
@@ -46,19 +52,40 @@ export const VirtualizedMessageList: React.FC = () => {
     }
   }, []);
 
-  // Функция для вычисления высоты каждого элемента
+  // Улучшенная функция для вычисления высоты
   const getItemSize = useCallback((index: number) => {
+    // Проверяем кэш
+    if (itemHeightsRef.current.has(index)) {
+      return itemHeightsRef.current.get(index)!;
+    }
+
     const message = messages[index];
-    // Простая эвристика: 50px базовая высота + 0.5px на символ
-    const estimatedHeight = 50 + (message.content.length * 0.5);
-    return Math.min(estimatedHeight, 2000); // Макс 2000px
+    
+    // Более точная эвристика для Markdown
+    let estimatedHeight = 80; // Базовая высота (padding + header)
+    
+    // Считаем количество строк (переносы)
+    const lines = message.content.split('\n').length;
+    estimatedHeight += lines * 24; // 24px на строку
+    
+    // Добавляем высоту для code blocks
+    const codeBlocks = (message.content.match(/```/g) || []).length / 2;
+    estimatedHeight += codeBlocks * 150; // 150px на code block
+    
+    // Ограничиваем минимум и максимум
+    estimatedHeight = Math.max(100, Math.min(estimatedHeight, 3000));
+    
+    // Кэшируем
+    itemHeightsRef.current.set(index, estimatedHeight);
+    
+    return estimatedHeight;
   }, [messages]);
 
   // Рендер функция для каждого элемента списка
-  const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+  const Row = useCallback(({ index }: { index: number; style: React.CSSProperties }) => {
     const message = messages[index];
-    return <MessageItem message={message} style={style} />;
-  };
+    return <MessageItem message={message} />;
+  }, [messages]);
 
   return (
     <div ref={containerRef} className="flex-1 overflow-hidden bg-white">
@@ -69,7 +96,7 @@ export const VirtualizedMessageList: React.FC = () => {
         itemSize={getItemSize}
         width="100%"
         onScroll={handleScroll}
-        overscanCount={2} // Рендерим +2 элемента сверху/снизу для плавности
+        overscanCount={2}
       >
         {Row}
       </VariableSizeList>

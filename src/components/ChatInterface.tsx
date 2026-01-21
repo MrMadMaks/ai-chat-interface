@@ -1,20 +1,33 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useChatStore } from '../store/chatStore';
 import { TextStreamGenerator } from '../utils/textGenerator';
-import { VirtualizedMessageList } from './VirtualizedMessageList';
+import { SimpleMessageList } from './SimpleMessageList';
 
 export const ChatInterface: React.FC = () => {
   const { addMessage, updateLastMessage, setIsGenerating, isGenerating, messages } = useChatStore();
   const [inputValue, setInputValue] = useState('');
   const [showStats, setShowStats] = useState(false);
+  const [stats, setStats] = useState({ messages: 0, chars: 0, words: 0 });
   const generatorRef = useRef<TextStreamGenerator | null>(null);
 
   // Статистика производительности
   useEffect(() => {
     if (showStats) {
       const interval = setInterval(() => {
+        const totalChars = messages.reduce((acc, m) => acc + m.content.length, 0);
+        const totalWords = messages.reduce((acc, m) => 
+          acc + m.content.split(/\s+/).filter(w => w.length > 0).length, 0
+        );
+        
+        setStats({
+          messages: messages.length,
+          chars: totalChars,
+          words: totalWords
+        });
+        
         console.log('Messages:', messages.length, 
-                    'Total chars:', messages.reduce((acc, m) => acc + m.content.length, 0));
+                    'Total chars:', totalChars,
+                    'Total words:', totalWords);
       }, 1000);
       return () => clearInterval(interval);
     }
@@ -38,13 +51,11 @@ export const ChatInterface: React.FC = () => {
       // onChunk: вызывается каждые 15ms
       (chunk) => {
         accumulatedContent += chunk;
-        // Обновляем только последнее сообщение
         updateLastMessage(accumulatedContent);
       },
       // onComplete
       () => {
         setIsGenerating(false);
-        // Убираем индикатор стриминга
         const updatedMessages = [...useChatStore.getState().messages];
         if (updatedMessages.length > 0) {
           updatedMessages[updatedMessages.length - 1].isStreaming = false;
@@ -60,7 +71,6 @@ export const ChatInterface: React.FC = () => {
     if (generatorRef.current) {
       generatorRef.current.stop();
       setIsGenerating(false);
-      // Убираем индикатор стриминга
       const updatedMessages = [...useChatStore.getState().messages];
       if (updatedMessages.length > 0) {
         updatedMessages[updatedMessages.length - 1].isStreaming = false;
@@ -87,10 +97,28 @@ export const ChatInterface: React.FC = () => {
             {showStats ? 'Hide' : 'Show'} Stats
           </button>
         </div>
+        
+        {/* Stats Panel */}
+        {showStats && (
+          <div className="mt-4 grid grid-cols-3 gap-4 bg-blue-700 rounded-lg p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold">{stats.messages}</div>
+              <div className="text-xs opacity-80">Messages</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold">{stats.chars.toLocaleString()}</div>
+              <div className="text-xs opacity-80">Characters</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold">{stats.words.toLocaleString()}</div>
+              <div className="text-xs opacity-80">Words</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Messages */}
-      <VirtualizedMessageList />
+      <SimpleMessageList />
 
       {/* Input Area */}
       <div className="border-t bg-white px-4 py-4 shadow-lg">

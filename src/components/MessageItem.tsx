@@ -5,18 +5,14 @@ import type { Message } from '../store/chatStore';
 
 interface MessageItemProps {
   message: Message;
-  style?: React.CSSProperties;
 }
 
 // memo() предотвращает ре-рендер, если message не изменился
-export const MessageItem = memo(({ message, style }: MessageItemProps) => {
+export const MessageItem = memo(({ message }: MessageItemProps) => {
   const isUser = message.role === 'user';
   
   return (
-    <div 
-      style={style} 
-      className={`flex ${isUser ? 'justify-end' : 'justify-start'} px-4 py-3`}
-    >
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} px-4 py-3`}>
       <div 
         className={`max-w-[80%] rounded-lg px-4 py-3 ${
           isUser 
@@ -28,7 +24,6 @@ export const MessageItem = memo(({ message, style }: MessageItemProps) => {
           {isUser ? 'You' : 'AI Assistant'}
         </div>
         
-        {/* Markdown рендерится только для видимых сообщений */}
         <div className="prose prose-sm max-w-none prose-pre:bg-gray-800 prose-pre:text-gray-100">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {message.content}
@@ -42,8 +37,6 @@ export const MessageItem = memo(({ message, style }: MessageItemProps) => {
     </div>
   );
 }, (prevProps, nextProps) => {
-  // Кастомная функция сравнения для memo
-  // Ре-рендерим только если изменился content или isStreaming
   return prevProps.message.content === nextProps.message.content &&
          prevProps.message.isStreaming === nextProps.message.isStreaming;
 });
