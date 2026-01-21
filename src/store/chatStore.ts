@@ -42,3 +42,10 @@ export const useChatStore = create<ChatState>((set) => ({
   
   stopGenerating: () => set({ isGenerating: false })
 }));
+
+// Atomic selectors - подписываемся только на нужные части стейта
+export const useMessages = () => useChatStore((state) => state.messages);
+export const useIsGenerating = () => useChatStore((state) => state.isGenerating);
+export const useLastMessage = () => useChatStore((state) => 
+  state.messages[state.messages.length - 1]
+);
