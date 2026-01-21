@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useChatStore } from '../store/chatStore';
 import { TextStreamGenerator } from '../utils/textGenerator';
 import { VirtualizedMessageList } from './VirtualizedMessageList';
@@ -6,7 +6,19 @@ import { VirtualizedMessageList } from './VirtualizedMessageList';
 export const ChatInterface: React.FC = () => {
   const { addMessage, updateLastMessage, setIsGenerating, isGenerating, messages } = useChatStore();
   const [inputValue, setInputValue] = useState('');
+  const [showStats, setShowStats] = useState(false);
   const generatorRef = useRef<TextStreamGenerator | null>(null);
+
+  // Статистика производительности
+  useEffect(() => {
+    if (showStats) {
+      const interval = setInterval(() => {
+        console.log('Messages:', messages.length, 
+                    'Total chars:', messages.reduce((acc, m) => acc + m.content.length, 0));
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [showStats, messages]);
 
   const handleGenerate = () => {
     if (isGenerating) return;
@@ -48,6 +60,12 @@ export const ChatInterface: React.FC = () => {
     if (generatorRef.current) {
       generatorRef.current.stop();
       setIsGenerating(false);
+      // Убираем индикатор стриминга
+      const updatedMessages = [...useChatStore.getState().messages];
+      if (updatedMessages.length > 0) {
+        updatedMessages[updatedMessages.length - 1].isStreaming = false;
+        useChatStore.setState({ messages: updatedMessages });
+      }
     }
   };
 
@@ -55,10 +73,20 @@ export const ChatInterface: React.FC = () => {
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-blue-600 text-white px-6 py-4 shadow-md">
-        <h1 className="text-2xl font-bold">AI Chat Interface</h1>
-        <p className="text-sm opacity-90">
-          {messages.length} messages • High-performance streaming
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">AI Chat Interface</h1>
+            <p className="text-sm opacity-90">
+              {messages.length} messages • High-performance streaming
+            </p>
+          </div>
+          <button 
+            onClick={() => setShowStats(!showStats)} 
+            className="text-xs bg-blue-700 hover:bg-blue-800 px-3 py-1 rounded transition-colors"
+          >
+            {showStats ? 'Hide' : 'Show'} Stats
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
